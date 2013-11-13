@@ -3,8 +3,8 @@ import logging
 
 import numpy as np
 
-print __name__
 from .. import objects
+
 
 logger = logging.getLogger(__name__)
 

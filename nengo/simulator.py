@@ -11,7 +11,8 @@ import time
 import networkx as nx
 import numpy as np
 
-from .builder import Builder, Probe
+from .builder import Builder, SimulatorProbe
+from .objects import Probe, Node
 
 logger = logging.getLogger(__name__)
 
@@ -269,7 +270,7 @@ class Simulator(object):
         """Simulate for the given length of time."""
         steps = int(np.round(float(time_in_seconds) / self.model.dt))
         logger.debug("Running %s for %f seconds, or %d steps",
-                     self.model.name, time_in_seconds, steps)
+                     self.model.label, time_in_seconds, steps)
         self.run_steps(steps)
 
     def run_steps(self, steps):
@@ -292,11 +293,9 @@ class Simulator(object):
         data : ndarray
             TODO: what are the dimensions?
         """
-        if not isinstance(probe, Probe):
-            if self.model.probed.has_key(probe):
-                probe = self.model.probed[probe]
-            else:
-                probe = self.model.probed[self.model.memo[id(probe)]]
+        if isinstance(probe, Probe):
+            probe = self.model.probemap[probe]
+            
         return np.asarray(self.probe_outputs[probe])
 
     def probe_data(self, probe):

@@ -6,7 +6,6 @@ import numpy as np
 from . import decoders
 from . import nonlinearities
 from . import context
-from . import builder
 
 logger = logging.getLogger(__name__)
 
@@ -72,8 +71,7 @@ class Ensemble(object):
 
     EVAL_POINTS = 500
 
-    def __init__(self, name, neurons, dimensions, **kwargs):
-        self.name = name
+    def __init__(self, neurons, dimensions, **kwargs):
         self.dimensions = dimensions # Must be set before neurons
         self.neurons = neurons
 
@@ -83,6 +81,7 @@ class Ensemble(object):
         if 'noise' in kwargs or 'noise_frequency' in kwargs:
             raise NotImplementedError('noise')
 
+        self.label = kwargs.get('label', "Ensemble")
         self.encoders = kwargs.get('encoders', None)
         self.eval_points = kwargs.get('eval_points', None)
         self.intercepts = kwargs.get('intercepts', Uniform(-1.0, 1.0))
@@ -102,7 +101,7 @@ class Ensemble(object):
         context.add_to_current(self)
 
     def __str__(self):
-        return "Ensemble: " + self.name
+        return "Ensemble: " + self.label
 
     @property
     def n_neurons(self):
@@ -136,8 +135,8 @@ class Ensemble(object):
             _neurons = nonlinearities.LIF(_neurons)
 
         # Give a better name if name is default
-        if _neurons.name.startswith("<"):
-            _neurons.name = self.name + "." + _neurons.__class__.__name__
+#        if _neurons.name.startswith("<"):
+#            _neurons.name = self.label + "." + _neurons.__class__.__name__
         # Store dimensions on neurons (necessary for some classes)
         _neurons.dimensions = self.dimensions
         self._neurons = _neurons
@@ -189,63 +188,59 @@ class Ensemble(object):
             post.connections_in.append(connection)
         return connection
 
-    def probe(self, to_probe='decoded_output', sample_every=0.001, filter=0.01):
-        """Probe a signal in this ensemble.
-
-        Parameters
-        ----------
-        to_probe : {'decoded_output'}, optional
-            The signal to probe.
-        sample_every : float, optional
-            The sampling period, in seconds.
-        filter : float, optional
-            The low-pass filter time constant of the probe, in seconds.
-
-        Returns
-        -------
-        probe : Probe
-            The new Probe object.
-        """
-        if to_probe == 'decoded_output':
-            probe = Probe(self.name + '.decoded_output', sample_every)
-            self.connect_to(probe, filter=filter)
-            self.probes['decoded_output'].append(probe)
-
-        elif to_probe == 'spikes':
-            probe = Probe(self.name + '.spikes', sample_every)
-            connection = Connection(
-                self.neurons, probe, filter=filter,
-                transform=np.eye(self.n_neurons))
-            self.connections_out.append(connection)
-            if hasattr(probe, 'connections_in'):
-                probe.connections_in.append(connection)
-            self.probes['spikes'].append(probe)
-
-        elif to_probe == 'voltages':
-            probe = Probe(self.name + '.voltages', sample_every, self.n_neurons)
-            connection = Connection(
-                self.neurons.voltage, probe, filter=None)
-            self.connections_out.append(connection)
-            if hasattr(probe, 'connections_in'):
-                probe.connections_in.append(connection)
-            self.probes['voltages'].append(probe)
-
-        else:
-            raise NotImplementedError(
-                "Probe target '%s' is not probable" % to_probe)
-        return probe
+#    def probe(self, to_probe='decoded_output', sample_every=0.001, filter=0.01):
+#        """Probe a signal in this ensemble.
+#
+#        Parameters
+#        ----------
+#        to_probe : {'decoded_output'}, optional
+#            The signal to probe.
+#        sample_every : float, optional
+#            The sampling period, in seconds.
+#        filter : float, optional
+#            The low-pass filter time constant of the probe, in seconds.
+#
+#        Returns
+#        -------
+#        probe : Probe
+#            The new Probe object.
+#        """
+#        if to_probe == 'decoded_output':
+#            probe = Probe(self.name + '.decoded_output', sample_every)
+#            self.connect_to(probe, filter=filter)
+#            self.probes['decoded_output'].append(probe)
+#
+#        elif to_probe == 'spikes':
+#            probe = Probe(self.name + '.spikes', sample_every)
+#            connection = Connection(
+#                self.neurons, probe, filter=filter,
+#                transform=np.eye(self.n_neurons))
+#            self.connections_out.append(connection)
+#            if hasattr(probe, 'connections_in'):
+#                probe.connections_in.append(connection)
+#            self.probes['spikes'].append(probe)
+#
+#        elif to_probe == 'voltages':
+#            probe = Probe(self.name + '.voltages', sample_every, self.n_neurons)
+#            connection = Connection(
+#                self.neurons.voltage, probe, filter=None)
+#            self.connections_out.append(connection)
+#            if hasattr(probe, 'connections_in'):
+#                probe.connections_in.append(connection)
+#            self.probes['voltages'].append(probe)
+#
+#        else:
+#            raise NotImplementedError(
+#                "Probe target '%s' is not probable" % to_probe)
+#        return probe
 
     def add_to_model(self, model):
-        if model.objs.has_key(self.name):
-            raise ValueError("Something called " + self.name + " already "
-                             "exists. Please choose a different name.")
-
-        model.objs[self.name] = self
+        model.objs += [self]
 
 
 class PassthroughNode(object):
-    def __init__(self, name, dimensions=1):
-        self.name = name
+    def __init__(self, label="PassthroughNode", dimensions=1):
+        self.label = label
         self.dimensions = dimensions
 
         self.connections_out = []
@@ -259,21 +254,17 @@ class PassthroughNode(object):
         self.connections_out += [connection]
 
     def add_to_model(self, model):
-        if model.objs.has_key(self.name):
-            raise ValueError("Something called " + self.name + " already "
-                             "exists. Please choose a different name.")
+        model.objs += self
 
-        model.objs[self.name] = self
-
-    def probe(self, to_probe='output', sample_every=0.001, filter=None):
-        if filter is not None and filter > 0:
-            logger.warning("Filter set on constant. Usually accidental.")
-
-        if to_probe == 'output':
-            p = Probe(self.name + ".output", sample_every)
-            self.connect_to(p, filter=filter)
-            self.probes['output'].append(p)
-        return p
+#    def probe(self, to_probe='output', sample_every=0.001, filter=None):
+#        if filter is not None and filter > 0:
+#            logger.warning("Filter set on constant. Usually accidental.")
+#
+#        if to_probe == 'output':
+#            p = Probe(self.name + ".output", sample_every)
+#            self.connect_to(p, filter=filter)
+#            self.probes['output'].append(p)
+#        return p
 
 
 class Node(object):
@@ -305,9 +296,10 @@ class Node(object):
         The number of input dimensions.
     """
 
-    def __init__(self, name, output, dimensions=1):
-        self.name = name
+    def __init__(self, output, label="Node", dimensions=1):
+        
         self.output = output
+        self.label = label
         self.dimensions = dimensions
 
         # Set up connections and probes
@@ -319,7 +311,7 @@ class Node(object):
         context.add_to_current(self)
 
     def __str__(self):
-        return "Node: " + self.name
+        return "Node: " + self.label
 
     def __deepcopy__(self, memo):
         try:
@@ -348,23 +340,19 @@ class Node(object):
             post.connections_in.append(connection)
         return connection
 
-    def probe(self, to_probe='output', sample_every=0.001, filter=None):
-        """TODO"""
-        if to_probe == 'output':
-            p = Probe(self.name + ".output", sample_every)
-            self.connect_to(p, filter=filter)
-            self.probes['output'].append(p)
-        return p
+#    def probe(self, to_probe='output', sample_every=0.001, filter=None):
+#        """TODO"""
+#        if to_probe == 'output':
+#            p = Probe(self.name + ".output", sample_every)
+#            self.connect_to(p, filter=filter)
+#            self.probes['output'].append(p)
+#        return p
 
     def add_to_model(self, model):
-        if model.objs.has_key(self.name):
-            raise ValueError("Something called " + self.name + " already "
-                             "exists. Please choose a different name.")
-        
         if callable(self.output):
             Connection(model.t, self, filter=None)
 
-        model.objs[self.name] = self
+        model.objs += [self]
 
 
 class Connection(object):
@@ -400,14 +388,14 @@ class Connection(object):
             post.connections_in.append(self)
 
     def __str__(self):
-        return self.name + " (" + self.__class__.__name__ + ")"
+        return self.label + " (" + self.__class__.__name__ + ")"
 
     def __repr__(self):
         return str(self)
 
     @property
-    def name(self):
-        return self.pre.name + ">" + self.post.name
+    def label(self):
+        return self.pre.label + ">" + self.post.label
 
     @property
     def transform(self):
@@ -501,11 +489,11 @@ class DecodedConnection(Connection):
         self._eval_points = _eval_points
 
     @property
-    def name(self):
-        name = self.pre.name + ">" + self.post.name
+    def label(self):
+        label = self.pre.label + ">" + self.post.label
         if self.function is not None:
-            return name + ":" + self.function.__name__
-        return name
+            return label + ":" + self.function.__name__
+        return label
 
 
 class ConnectionList(object):
@@ -540,12 +528,20 @@ class Probe(object):
         List of incoming connections.
     sample_rate
     """
-    def __init__(self, name, sample_every, dimensions=None):
-        self.name = "Probe(" + name + ")"
+    def __init__(self, target, attr, sample_every=0.001, filter=None, dimensions=None):
+        self.target = target
+        self.label = "Probe(" + target.label + "." + attr + ")"
         self.sample_every = sample_every
         self.dimensions = dimensions ##None?
 
         self.connections_in = []
+        
+        target.probes[attr] += [self] #is this line necessary?
+        
+        target.connect_to(self, filter=filter)
+        
+        #add self to current context
+        context.add_to_current(self)
 
     @property
     def sample_rate(self):
@@ -554,3 +550,4 @@ class Probe(object):
 
     def add_to_model(self, model):
         model.signal_probes.append(self)
+        model.probed[self.target] = self

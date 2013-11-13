@@ -335,7 +335,7 @@ class Signal(SignalView):
         return self
 
 
-class Probe(object):
+class SimulatorProbe(object):
     """A model probe to record a signal"""
     def __init__(self, sig, dt):
         self.sig = sig
@@ -715,7 +715,7 @@ class Builder(object):
         else:
             self.model = model
 
-        self.model.name = self.model.name + ", dt=%f" % dt
+        self.model.label = self.model.label + ", dt=%f" % dt
         self.model.dt = dt
         if self.model.seed is None:
             self.model.seed = np.random.randint(np.iinfo(np.int32).max)
@@ -723,22 +723,25 @@ class Builder(object):
         # The purpose of the build process is to fill up these lists
         self.model.probes = []
         self.model.operators = []
+        self.model.probemap = {}
 
         # 1. Build objects
         logger.info("Building objects")
-        for obj in self.model.objs.values():
+        for obj in self.model.objs:
             self._builders[obj.__class__](obj)
 
         # 2. Then probes
         logger.info("Building probes")
-        for target in self.model.probed:
-            if not isinstance(self.model.probed[target], Probe):
-                self._builders[objects.Probe](self.model.probed[target])
-                self.model.probed[target] = self.model.probed[target].probe
+        for target,copytarget in zip(model.probed,self.model.probed):
+            if not isinstance(self.model.probed[copytarget], SimulatorProbe):
+                self._builders[objects.Probe](self.model.probed[copytarget])
+                self.model.probemap[model.probed[target]] = self.model.probed[copytarget].probe
+                self.model.probed[copytarget] = self.model.probed[copytarget].probe
+                
 
         # 3. Then connections
         logger.info("Building connections")
-        for o in self.model.objs.values():
+        for o in self.model.objs:
             for c in o.connections_out:
                 self._builders[c.__class__](c)
         for c in self.model.connections:
@@ -780,7 +783,7 @@ class Builder(object):
         # Set up signal
         if signal is None:
             ens.input_signal = Signal(np.zeros(ens.dimensions),
-                                      name=ens.name + ".signal")
+                                      name=ens.label + ".signal")
         else:
             # Assume that a provided signal is already in the model
             ens.input_signal = signal
@@ -861,18 +864,18 @@ class Builder(object):
     def build_node(self, node):
         if not callable(node.output):
             if isinstance(node.output, (int, float, long, complex)):
-                node.output_signal = Signal([node.output], name=node.name)
+                node.output_signal = Signal([node.output], name=node.label)
             else:
                 node.output_signal = Signal(node.output, name=node.name)
         else:
             node.input_signal = Signal(np.zeros(node.dimensions),
-                                       name=node.name + ".signal")
+                                       name=node.label + ".signal")
 
             #reset input signal to 0 each timestep
             self.model.operators.append(Reset(node.input_signal))
 
             node.pyfn = nonlinearities.PythonFunction(
-                fn=node.output, n_in=node.dimensions, name=node.name + ".pyfn")
+                fn=node.output, n_in=node.dimensions, name=node.label + ".pyfn")
             self.build_pyfunc(node.pyfn)
             self.model.operators.append(DotInc(
                 node.input_signal, Signal([[1.0]]), node.pyfn.input_signal))
@@ -885,13 +888,13 @@ class Builder(object):
     @builds(objects.Probe)
     def build_probe(self, probe):
         # Set up signal
-        probe.input_signal = Signal(np.zeros(probe.dimensions), name=probe.name)
+        probe.input_signal = Signal(np.zeros(probe.dimensions), name=probe.label)
 
         #reset input signal to 0 each timestep
         self.model.operators.append(Reset(probe.input_signal))
 
         # Set up probe
-        probe.probe = Probe(probe.input_signal, probe.sample_every)
+        probe.probe = SimulatorProbe(probe.input_signal, probe.sample_every)
         self.model.probes.append(probe.probe)
 
     @staticmethod
@@ -971,7 +974,7 @@ class Builder(object):
         else:
             # For normal decoded connections...
             conn.input_signal = conn.pre.output_signal
-            conn.signal = Signal(np.zeros(conn.dimensions), name=conn.name)
+            conn.signal = Signal(np.zeros(conn.dimensions), name=conn.label)
 
             # Set up decoders
             if conn._decoders is None:

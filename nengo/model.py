@@ -61,31 +61,31 @@ class Model(object, context.Context):
 
     """
 
-    def __init__(self, name, seed=None):
-        self.objs = OrderedDict()
+    def __init__(self, label="Model", seed=None):
+        self.objs = []
         self.probed = OrderedDict()
         self.connections = []
         self.signal_probes = []
 
-        self.name = name + ''  # -- make self.name a string, raise error otw
+        self.label = label + ''  # -- make self.name a string, raise error otw
         self.seed = seed
 
         self._rng = None
 
         # Some automatic stuff
         with self:
-            self.t = objects.Node('t', output=0)
-            self.steps = objects.Node('steps', output=0)
+            self.t = objects.Node(label='t', output=0)
+            self.steps = objects.Node(label='steps', output=0)
 
-        # Automatically probe time
-        self.probe(self.t)
+#            # Automatically probe time
+#            objects.Probe(self.t, 'output')
         
         #make this the default context if one isn't already set
         if context.current() is None:
             context.push(self)
 
     def __str__(self):
-        return "Model: " + self.name
+        return "Model: " + self.label
 
     def _get_new_seed(self):
         if self._rng is None:
@@ -263,7 +263,7 @@ class Model(object, context.Context):
         """
         obj = self.get(target)
         if obj is None:
-            logger.warning("%s is not in model %s.", str(target), self.name)
+            logger.warning("%s is not in model %s.", str(target), self.label)
             return
 
         for k, v in self.objs.iteritems():
@@ -441,68 +441,68 @@ class Model(object, context.Context):
 #        pre = self.get(pre)
 #        post = self.get(post)
 #        return pre.connect_to(post, **kwargs)
-
-    def probe(self, target, sample_every=0.001, filter=None):
-        """Probe a piece of data contained in the model.
-
-        When a piece of data is probed, it will be recorded through
-        the course of the simulation.
-
-        Parameters
-        ----------
-        target : str, Nengo object
-            The piece of data being probed.
-            This can specified as a string
-            (see `string reference <string_reference.html>`_)
-            or a Nengo object. Each Nengo object will emit
-            what it considers to be the most useful piece of data
-            by default; if that's not what you want,
-            then specify the correct data using the string format.
-        sample_every : float, optional
-            How often to sample the target data, in seconds.
-
-            Some types of data (e.g. connection weight matrices)
-            are very large, and change relatively slowly.
-            Use `sample_every` to limit the amount of data
-            being recorded. For example::
-
-              model.probe('A>B.weights', sample_every=0.5)
-
-            records the value of the weight matrix between
-            the `A` and `B` ensembles every 0.5 simulated seconds.
-
-            **Default**: Every timestep (i.e., `dt`).
-        static : bool, optional
-            Denotes if a piece of data does not change.
-
-            Some data that you would want to know about the model
-            does not change over the course of the simulation;
-            this includes things like the properties of a model
-            (e.g., number of neurons or connections) or the random seed
-            associated with a model. In these cases, to record that data
-            only once (for later being written to a file),
-            set `static` to True.
-
-            **Default**: False
-
-        See Also
-        --------
-        Probe
-        """
-        if isinstance(target, str):
-            obj = self.get(target, "NotFound")
-            if obj == "NotFound" and '.' in target:
-                name, probe_name = target.rsplit('.', 1)
-                obj = self.get(name)
-                p = obj.probe(probe_name, sample_every, filter)
-            elif obj == "NotFound":
-                raise ValueError(str(target) + " cannot be found.")
-            else:
-                p = obj.probe(sample_every=sample_every, filter=filter)
-        elif hasattr(target, 'probe'):
-            p = target.probe(sample_every=sample_every, filter=filter)
-        else:
-            raise TypeError("Type " + target.__class__.__name__ + " "
-                            "has no probe function.")
-
-        self.probed[target] = p
+#
+#    def probe(self, target, sample_every=0.001, filter=None):
+#        """Probe a piece of data contained in the model.
+#
+#        When a piece of data is probed, it will be recorded through
+#        the course of the simulation.
+#
+#        Parameters
+#        ----------
+#        target : str, Nengo object
+#            The piece of data being probed.
+#            This can specified as a string
+#            (see `string reference <string_reference.html>`_)
+#            or a Nengo object. Each Nengo object will emit
+#            what it considers to be the most useful piece of data
+#            by default; if that's not what you want,
+#            then specify the correct data using the string format.
+#        sample_every : float, optional
+#            How often to sample the target data, in seconds.
+#
+#            Some types of data (e.g. connection weight matrices)
+#            are very large, and change relatively slowly.
+#            Use `sample_every` to limit the amount of data
+#            being recorded. For example::
+#
+#              model.probe('A>B.weights', sample_every=0.5)
+#
+#            records the value of the weight matrix between
+#            the `A` and `B` ensembles every 0.5 simulated seconds.
+#
+#            **Default**: Every timestep (i.e., `dt`).
+#        static : bool, optional
+#            Denotes if a piece of data does not change.
+#
+#            Some data that you would want to know about the model
+#            does not change over the course of the simulation;
+#            this includes things like the properties of a model
+#            (e.g., number of neurons or connections) or the random seed
+#            associated with a model. In these cases, to record that data
+#            only once (for later being written to a file),
+#            set `static` to True.
+#
+#            **Default**: False
+#
+#        See Also
+#        --------
+#        Probe
+#        """
+#        if isinstance(target, str):
+#            obj = self.get(target, "NotFound")
+#            if obj == "NotFound" and '.' in target:
+#                name, probe_name = target.rsplit('.', 1)
+#                obj = self.get(name)
+#                p = obj.probe(probe_name, sample_every, filter)
+#            elif obj == "NotFound":
+#                raise ValueError(str(target) + " cannot be found.")
+#            else:
+#                p = obj.probe(sample_every=sample_every, filter=filter)
+#        elif hasattr(target, 'probe'):
+#            p = target.probe(sample_every=sample_every, filter=filter)
+#        else:
+#            raise TypeError("Type " + target.__class__.__name__ + " "
+#                            "has no probe function.")
+#
+#        self.probed[target] = p
