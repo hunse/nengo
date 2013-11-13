@@ -39,7 +39,7 @@ with model:
     
     # Connect the population to itself
     tau = 0.1
-    DecodedConnection(A, A, transform=[[1]], filter=tau) #The same time constant as recurrent to make it more 'ideal'
+    DecodedConnection(A, A, transform=[[1]], filter=tau) #A long time constant for stability
     
     # Connect the input
     Connection(input, A, transform=[[tau]], filter=tau) #The same time constant as recurrent to make it more 'ideal'
@@ -60,8 +60,8 @@ import matplotlib.pyplot as plt
 
 # Plot the decoded output of the ensemble
 t = sim.data(p3) #Get the time steps
-plt.plot(t, sim.data(p1), label="Integrator output")
-plt.plot(t, sim.data(p2), 'k', label="Input")
+plt.plot(t, sim.data(p1), label="Input")
+plt.plot(t, sim.data(p2), 'k', label="Integrator output")
 plt.legend()
 
 plt.show()
