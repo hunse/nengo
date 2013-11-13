@@ -536,7 +536,7 @@ class Probe(object):
 
         self.connections_in = []
         
-        target.probes[attr] += [self] #is this line necessary?
+        target.probes[attr] += [self]
         
         target.connect_to(self, filter=filter)
         
