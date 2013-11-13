@@ -5,7 +5,8 @@ import numpy as np
 
 from . import decoders
 from . import nonlinearities
-from . import objects
+#from . import objects
+import objects
 from . import templates
 
 logger = logging.getLogger(__name__)

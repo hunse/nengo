@@ -5,6 +5,8 @@ import numpy as np
 
 from . import decoders
 from . import nonlinearities
+from . import context
+from . import builder
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +97,9 @@ class Ensemble(object):
 
         # objects created at build time
         self._scaled_encoders = None  # encoders * neuron-gains / radius
+        
+        #add self to current context
+        context.add_to_current(self)
 
     def __str__(self):
         return "Ensemble: " + self.name
@@ -245,6 +250,9 @@ class PassthroughNode(object):
 
         self.connections_out = []
         self.probes = {'output': []}
+        
+        #add self to current context
+        context.add_to_current(self)
 
     def connect_to(self, post, **kwargs):
         connection = Connection(self, post, **kwargs)
@@ -306,6 +314,9 @@ class Node(object):
         self.connections_in = []
         self.connections_out = []
         self.probes = {'output': []}
+        
+        #add self to current context
+        context.add_to_current(self)
 
     def __str__(self):
         return "Node: " + self.name
@@ -349,6 +360,9 @@ class Node(object):
         if model.objs.has_key(self.name):
             raise ValueError("Something called " + self.name + " already "
                              "exists. Please choose a different name.")
+        
+        if callable(self.output):
+            Connection(model.t, self, filter=None)
 
         model.objs[self.name] = self
 
@@ -379,6 +393,11 @@ class Connection(object):
         self.modulatory = kwargs.get('modulatory', False)
 
         self.probes = {'signal': []}
+        
+        #add self to pre and post
+        pre.connections_out.append(self)
+        if hasattr(post, 'connections_in'):
+            post.connections_in.append(self)
 
     def __str__(self):
         return self.name + " (" + self.__class__.__name__ + ")"

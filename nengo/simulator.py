@@ -77,7 +77,7 @@ class Simulator(object):
             if hasattr(node, 'make_step')]
         self._steps = [node.make_step(self._sigdict, self.model.dt)
             for node in self._step_order]
-
+        
         self.n_steps = 0
         self.probe_outputs = dict((probe, []) for probe in self.model.probes)
 

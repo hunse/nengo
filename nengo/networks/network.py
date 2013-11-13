@@ -1,6 +1,7 @@
 from .. import objects
+from .. import context
 
-class Network(object):
+class Network(object, context.Context):
     def __init__(self, name, *args, **kwargs):
         self.name = name
         self.objects = []
