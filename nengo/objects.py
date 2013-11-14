@@ -188,51 +188,45 @@ class Ensemble(object):
             post.connections_in.append(connection)
         return connection
 
-#    def probe(self, to_probe='decoded_output', sample_every=0.001, filter=0.01):
-#        """Probe a signal in this ensemble.
-#
-#        Parameters
-#        ----------
-#        to_probe : {'decoded_output'}, optional
-#            The signal to probe.
-#        sample_every : float, optional
-#            The sampling period, in seconds.
-#        filter : float, optional
-#            The low-pass filter time constant of the probe, in seconds.
-#
-#        Returns
-#        -------
-#        probe : Probe
-#            The new Probe object.
-#        """
-#        if to_probe == 'decoded_output':
-#            probe = Probe(self.name + '.decoded_output', sample_every)
-#            self.connect_to(probe, filter=filter)
-#            self.probes['decoded_output'].append(probe)
-#
-#        elif to_probe == 'spikes':
-#            probe = Probe(self.name + '.spikes', sample_every)
-#            connection = Connection(
-#                self.neurons, probe, filter=filter,
-#                transform=np.eye(self.n_neurons))
-#            self.connections_out.append(connection)
-#            if hasattr(probe, 'connections_in'):
-#                probe.connections_in.append(connection)
-#            self.probes['spikes'].append(probe)
-#
-#        elif to_probe == 'voltages':
-#            probe = Probe(self.name + '.voltages', sample_every, self.n_neurons)
-#            connection = Connection(
-#                self.neurons.voltage, probe, filter=None)
-#            self.connections_out.append(connection)
-#            if hasattr(probe, 'connections_in'):
-#                probe.connections_in.append(connection)
-#            self.probes['voltages'].append(probe)
-#
-#        else:
-#            raise NotImplementedError(
-#                "Probe target '%s' is not probable" % to_probe)
-#        return probe
+    def probe(self, probe):
+        """Probe a signal in this ensemble.
+
+        Parameters
+        ----------
+        to_probe : {'decoded_output'}, optional
+            The signal to probe.
+        sample_every : float, optional
+            The sampling period, in seconds.
+        filter : float, optional
+            The low-pass filter time constant of the probe, in seconds.
+
+        Returns
+        -------
+        probe : Probe
+            The new Probe object.
+        """
+        
+        self.probes[probe.attr].append(probe)
+        
+        if probe.attr == 'decoded_output':
+            self.connect_to(probe, filter=probe.filter)
+        elif probe.attr == 'spikes':
+            connection = Connection(
+                self.neurons, probe, filter=probe.filter,
+                transform=np.eye(self.n_neurons))
+            self.connections_out.append(connection)
+            if hasattr(probe, 'connections_in'):
+                probe.connections_in.append(connection)
+        elif probe.attr == 'voltages':
+            connection = Connection(
+                self.neurons.voltage, probe, filter=None)
+            self.connections_out.append(connection)
+            if hasattr(probe, 'connections_in'):
+                probe.connections_in.append(connection)
+        else:
+            raise NotImplementedError(
+                "Probe target '%s' is not probable" % probe.attr)
+        return probe
 
     def add_to_model(self, model):
         model.objs += [self]
@@ -254,17 +248,16 @@ class PassthroughNode(object):
         self.connections_out += [connection]
 
     def add_to_model(self, model):
-        model.objs += self
+        model.objs += [self]
 
-#    def probe(self, to_probe='output', sample_every=0.001, filter=None):
-#        if filter is not None and filter > 0:
-#            logger.warning("Filter set on constant. Usually accidental.")
-#
-#        if to_probe == 'output':
-#            p = Probe(self.name + ".output", sample_every)
-#            self.connect_to(p, filter=filter)
-#            self.probes['output'].append(p)
-#        return p
+    def probe(self, probe):
+        if filter is not None and filter > 0:
+            logger.warning("Filter set on constant. Usually accidental.")
+
+        if probe.attr == 'output':
+            self.connect_to(probe, filter=probe.filter)
+            self.probes['output'].append(probe)
+        return probe
 
 
 class Node(object):
@@ -340,13 +333,12 @@ class Node(object):
             post.connections_in.append(connection)
         return connection
 
-#    def probe(self, to_probe='output', sample_every=0.001, filter=None):
-#        """TODO"""
-#        if to_probe == 'output':
-#            p = Probe(self.name + ".output", sample_every)
-#            self.connect_to(p, filter=filter)
-#            self.probes['output'].append(p)
-#        return p
+    def probe(self, probe):
+        """TODO"""
+        if probe.attr == 'output':
+            self.connect_to(probe, filter=probe.filter)
+            self.probes['output'].append(probe)
+        return probe
 
     def add_to_model(self, model):
         if callable(self.output):
@@ -530,15 +522,15 @@ class Probe(object):
     """
     def __init__(self, target, attr, sample_every=0.001, filter=None, dimensions=None):
         self.target = target
+        self.attr = attr
         self.label = "Probe(" + target.label + "." + attr + ")"
         self.sample_every = sample_every
         self.dimensions = dimensions ##None?
+        self.filter = filter
 
         self.connections_in = []
         
-        target.probes[attr] += [self]
-        
-        target.connect_to(self, filter=filter)
+        target.probe(self)
         
         #add self to current context
         context.add_to_current(self)
@@ -549,5 +541,6 @@ class Probe(object):
         return 1.0 / self.sample_every
 
     def add_to_model(self, model):
-        model.signal_probes.append(self)
-        model.probed[self.target] = self
+#        model.signal_probes.append(self) #this never gets used anywhere
+        model.probed[self.target] = self #this won't work if you have multiple probes on the same target
+                                        #(it worked before because target was a string that specified the attr)

@@ -2,10 +2,13 @@ from .. import objects
 from .. import context
 
 class Network(object, context.Context):
-    def __init__(self, name, *args, **kwargs):
-        self.name = name
+    def __init__(self, *args, **kwargs):
+        self.label = kwargs.pop("label", "Network")
         self.objects = []
         self.make(*args, **kwargs)
+        
+        #add self to current context
+        context.add_to_current(self)
 
     def add(self, obj):
         self.objects.append(obj)
@@ -16,5 +19,5 @@ class Network(object, context.Context):
 
     def add_to_model(self, model):
         for obj in self.objects:
-            obj.name = self.name + '.' +  obj.name
+            obj.label = self.label + '.' +  obj.label
             model.add(obj)

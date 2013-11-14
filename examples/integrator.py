@@ -47,7 +47,6 @@ with model:
     # Add probes
     p1 = nengo.Probe(input, 'output')
     p2 = nengo.Probe(A, 'decoded_output', filter=0.01)
-    p3 = nengo.Probe(model.t, 'output')
 
 
 # Create our simulator
@@ -57,9 +56,9 @@ sim.run(6)
 
 
 import matplotlib.pyplot as plt
-
-# Plot the decoded output of the ensemble
-t = sim.data(p3) #Get the time steps
+#
+## Plot the decoded output of the ensemble
+t = sim.data(model.t_probe) #Get the time steps 
 plt.plot(t, sim.data(p1), label="Input")
 plt.plot(t, sim.data(p2), 'k', label="Integrator output")
 plt.legend()

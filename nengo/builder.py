@@ -723,6 +723,7 @@ class Builder(object):
         self.model.probes = []
         self.model.operators = []
         self.model.probemap = {}
+        self.model.objectmap = {}
 
         # 1. Build objects
         logger.info("Building objects")
@@ -735,7 +736,8 @@ class Builder(object):
             if not isinstance(self.model.probed[copytarget], SimulatorProbe):
                 self._builders[objects.Probe](self.model.probed[copytarget])
                 self.model.probemap[model.probed[target]] = self.model.probed[copytarget].probe
-                self.model.probed[copytarget] = self.model.probed[copytarget].probe
+#                self.model.objectmap[target] = copytarget
+#                self.model.probed[copytarget] = self.model.probed[copytarget].probe
                 
 
         # 3. Then connections
@@ -848,7 +850,7 @@ class Builder(object):
     @builds(objects.PassthroughNode)
     def build_passthrough(self, ptn):
         ptn.input_signal = Signal(np.zeros(ptn.dimensions),
-                                  name=ptn.name + ".signal")
+                                  name=ptn.label + ".signal")
         ptn.output_signal = ptn.input_signal
 
         #reset input signal to 0 each timestep

@@ -294,7 +294,11 @@ class Simulator(object):
             TODO: what are the dimensions?
         """
         if isinstance(probe, Probe):
+            #then map it to the simulator probe
             probe = self.model.probemap[probe]
+#        else:
+#            #then probe is the target object
+#            probe = self.model.probed[self.model.objectmap[probe]].probe
             
         return np.asarray(self.probe_outputs[probe])
 

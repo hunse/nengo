@@ -77,8 +77,8 @@ class Model(object, context.Context):
             self.t = objects.Node(label='t', output=0)
             self.steps = objects.Node(label='steps', output=0)
 
-#            # Automatically probe time
-#            objects.Probe(self.t, 'output')
+            # Automatically probe time
+            self.t_probe = objects.Probe(self.t, 'output')
         
         #make this the default context if one isn't already set
         if context.current() is None:

@@ -14,21 +14,23 @@ class TestNode(SimulatorTestCase):
     def test_simple(self):
         dt = 0.001
         m = nengo.Model('test_simple', seed=123)
-        m.make_node('in', output=np.sin)
-        m.probe('in')
+        
+        with m:
+            input = nengo.Node(output=np.sin)
+            p = nengo.Probe(input, 'output')
 
         sim = m.simulator(dt=dt, sim_class=self.Simulator)
         runtime = 0.5
         sim.run(runtime)
 
         with Plotter(self.Simulator) as plt:
-            plt.plot(sim.data(m.t), sim.data('in'), label='sin')
+            plt.plot(sim.data(m.t_probe), sim.data(p), label='sin')
             plt.legend(loc='best')
             plt.savefig('test_node.test_simple.pdf')
             plt.close()
 
-        sim_t = sim.data(m.t).ravel()
-        sim_in = sim.data('in').ravel()
+        sim_t = sim.data(m.t_probe).ravel()
+        sim_in = sim.data(p).ravel()
         t = dt * np.arange(len(sim_t))
         self.assertTrue(np.allclose(sim_t, t))
         self.assertTrue(np.allclose(sim_in[1:], np.sin(t[:-1]))) # 1-step delay
@@ -36,28 +38,32 @@ class TestNode(SimulatorTestCase):
     def test_connected(self):
         dt = 0.001
         m = nengo.Model('test_connected', seed=123)
-        m.make_node('in', output=np.sin)
-        # Not using make_node, as make_node connects time to node
-        m.add(Node('out', output=np.square))
-        m.connect('in', 'out', filter=None)  # Direct connection
-        m.probe('in')
-        m.probe('out')
+        
+        with m:
+            input = nengo.Node(output=np.sin)
+            # Not using make_node, as make_node connects time to node
+            output = nengo.Node(output=np.square)
+            nengo.Connection(input, output, filter=None)  # Direct connection
+            p_in = nengo.Probe(input, 'output')
+            p_out = nengo.Probe(output, 'output')
 
         sim = m.simulator(dt=dt, sim_class=self.Simulator)
         runtime = 0.5
         sim.run(runtime)
 
         with Plotter(self.Simulator) as plt:
-            plt.plot(sim.data(m.t), sim.data('in'), label='sin')
-            plt.plot(sim.data(m.t), sim.data('out'), label='sin squared')
+            plt.plot(sim.data(m.t_probe), sim.data(p_in), label='sin')
+            plt.plot(sim.data(m.t_probe), sim.data(p_out), label='sin squared')
             plt.legend(loc='best')
             plt.savefig('test_node.test_connected.pdf')
             plt.close()
 
-        sim_t = sim.data(m.t).ravel()
-        sim_sin = sim.data('in').ravel()
-        sim_sq = sim.data('out').ravel()
+        sim_t = sim.data(m.t_probe).ravel()
+        sim_sin = sim.data(p_in).ravel()
+        sim_sq = sim.data(p_out).ravel()
         t = dt * np.arange(len(sim_t))
+        print sim_t
+        print t
         self.assertTrue(np.allclose(sim_t, t))
         self.assertTrue(np.allclose(sim_sin[1:], np.sin(t[:-1]))) # 1-step delay
         self.assertTrue(np.allclose(sim_sq[1:], sim_sin[:-1]**2)) # 1-step delay
@@ -66,54 +72,54 @@ class TestNode(SimulatorTestCase):
         dt = 0.001
         m = nengo.Model("test_passthrough", seed=0)
 
-        m.make_node("in", output=np.sin)
-        m.make_node("in2", output=lambda t: t)
-        m.add(PassthroughNode("pass"))
-        m.add(Node("out", output=lambda x: x))
-
-        m.connect("in", "pass", filter=None)
-        m.connect("in2", "pass", filter=None)
-        m.connect("pass", "out", filter=None)
-
-        m.probe("in")
-        m.probe("in2")
-        m.probe("out")
+        with m:
+            in1 = nengo.Node(output=np.sin)
+            in2 = nengo.Node(output=lambda t: t)
+            passthrough = nengo.PassthroughNode()
+            out = nengo.Node(output=lambda x: x)
+    
+            nengo.Connection(in1, passthrough, filter=None)
+            nengo.Connection(in2, passthrough, filter=None)
+            nengo.Connection(passthrough, out, filter=None)
+    
+            in1_p = nengo.Probe(in1, 'output')
+            in2_p = nengo.Probe(in2, 'output')
+            out_p = nengo.Probe(out, 'output')
 
         sim = m.simulator(dt=dt, sim_class=self.Simulator)
         runtime = 0.5
         sim.run(runtime)
 
         with Plotter(self.Simulator) as plt:
-            plt.plot(sim.data(m.t), sim.data('in')+sim.data('in2'), label='in+in2')
-            plt.plot(sim.data(m.t)[:-2], sim.data('out')[2:], label='out')
+            plt.plot(sim.data(m.t_probe), sim.data(in1_p)+sim.data(in2_p), label='in+in2')
+            plt.plot(sim.data(m.t_probe)[:-2], sim.data(out_p)[2:], label='out')
             plt.legend(loc='best')
             plt.savefig('test_node.test_passthrough.pdf')
             plt.close()
 
         # One-step delay between first and second nonlinearity
-        sim_in = sim.data('in')[:-1] + sim.data('in2')[:-1]
-        sim_out = sim.data('out')[1:]
+        sim_in = sim.data(in1_p)[:-1] + sim.data(in2_p)[:-1]
+        sim_out = sim.data(out_p)[1:]
         self.assertTrue(np.allclose(sim_in, sim_out))
 
     def test_circular(self):
         dt = 0.001
         m = nengo.Model("test_circular", seed=0)
 
-        m.add(Node("a", output=lambda x:x+1))
-        m.add(Node("b", output=lambda x:x+1))
-        m.connect("a", "b", filter=None)
-        m.connect("b", "a", filter=None)
-
-        m.probe("a")
-        m.probe("b")
+        with m:
+            a = nengo.Node(output=lambda x:x+1)
+            b = nengo.Node(output=lambda x:x+1)
+            nengo.Connection(a, b, filter=None)
+            nengo.Connection(b, a, filter=None)
+    
+            a_p = nengo.Probe(a, 'output')
+            b_p = nengo.Probe(b, 'output')
 
         sim = m.simulator(dt=dt, sim_class=self.Simulator)
         runtime = 0.5
         sim.run(runtime)
 
-        a = sim.data("a")
-        b = sim.data("b")
-        assert_allclose(self, logger, a, b)
+        assert_allclose(self, logger, sim.data(a_p), sim.data(b_p))
 
 
 if __name__ == "__main__":
