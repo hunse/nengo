@@ -127,31 +127,31 @@ class Model(object, context.Context):
 
     ### Simulation methods
 
-    def simulator(self, dt=0.001, sim_class=simulator.Simulator,
-                  seed=None, **sim_args):
-        """Get a new simulator object for the model.
-
-        Parameters
-        ----------
-        dt : float, optional
-            Fundamental unit of time for the simulator, in seconds.
-        sim_class : child class of `Simulator`, optional
-            The class of simulator to be used.
-        seed : int, optional
-            Random number seed for the simulator's random number generator.
-            This random number generator is responsible for creating any random
-            numbers used during simulation, such as random noise added to
-            neurons' membrane voltages.
-        **sim_args : optional
-            Arguments to pass to the simulator constructor.
-
-        Returns
-        -------
-        simulator : `sim_class`
-            A new simulator object, containing a copy of the model in its
-            current state.
-        """
-        return sim_class(model=self, dt=dt, seed=seed, **sim_args)
+#    def simulator(self, dt=0.001, sim_class=simulator.Simulator,
+#                  seed=None, **sim_args):
+#        """Get a new simulator object for the model.
+#
+#        Parameters
+#        ----------
+#        dt : float, optional
+#            Fundamental unit of time for the simulator, in seconds.
+#        sim_class : child class of `Simulator`, optional
+#            The class of simulator to be used.
+#        seed : int, optional
+#            Random number seed for the simulator's random number generator.
+#            This random number generator is responsible for creating any random
+#            numbers used during simulation, such as random noise added to
+#            neurons' membrane voltages.
+#        **sim_args : optional
+#            Arguments to pass to the simulator constructor.
+#
+#        Returns
+#        -------
+#        simulator : `sim_class`
+#            A new simulator object, containing a copy of the model in its
+#            current state.
+#        """
+#        return sim_class(model=self, dt=dt, seed=seed, **sim_args)
 
     ### Model manipulation
 
@@ -186,64 +186,64 @@ class Model(object, context.Context):
         except AttributeError,ae:
             raise TypeError("Error in %s.add_to_model.\n%s"%(obj,ae))
 
-    def get(self, target, default=None):
-        """Return the Nengo object specified.
-
-        Parameters
-        ----------
-        target : string or Nengo object
-            The `target` can be specified with a string
-            (see `string reference <string_reference.html>`_)
-            or a Nengo object.
-            If a Nengo object is passed, `get` just confirms
-            that `target` is a part of the model.
-
-        default : Nengo object, optional
-            If `target` is not in the model, then `get` will
-            return `default`.
-
-        Returns
-        -------
-        target : Nengo object
-            The Nengo object specified by `target`.
-
-        """
-        if isinstance(target, str):
-            return self.objs.get(target, default)
-        return target
-
-    def get_string(self, target, default=None):
-        """Return the canonical string of the Nengo object specified.
-
-        Parameters
-        ----------
-        target : string or Nengo object
-            The `target` can be specified with a string
-            (see `string reference <string_reference.html>`_)
-            or a Nengo object.
-            If a string is passed, `get_string` just returns that string.
-
-        default : Nengo object, optional
-            If `target` is not in the model, then `get` will
-            return `default`.
-
-        Returns
-        -------
-        target : Nengo object
-            The Nengo object specified by `target`.
-
-        Raises
-        ------
-        ValueError
-            If the `target` does not exist and no `default` is specified.
-
-        """
-        if isinstance(target, str) and self.objs.has_key(target):
-            return target
-        for k, v in self.objs.iteritems():
-            if v == target:
-                return k
-        return default
+#    def get(self, target, default=None):
+#        """Return the Nengo object specified.
+#
+#        Parameters
+#        ----------
+#        target : string or Nengo object
+#            The `target` can be specified with a string
+#            (see `string reference <string_reference.html>`_)
+#            or a Nengo object.
+#            If a Nengo object is passed, `get` just confirms
+#            that `target` is a part of the model.
+#
+#        default : Nengo object, optional
+#            If `target` is not in the model, then `get` will
+#            return `default`.
+#
+#        Returns
+#        -------
+#        target : Nengo object
+#            The Nengo object specified by `target`.
+#
+#        """
+#        if isinstance(target, str):
+#            return self.objs.get(target, default)
+#        return target
+#
+#    def get_string(self, target, default=None):
+#        """Return the canonical string of the Nengo object specified.
+#
+#        Parameters
+#        ----------
+#        target : string or Nengo object
+#            The `target` can be specified with a string
+#            (see `string reference <string_reference.html>`_)
+#            or a Nengo object.
+#            If a string is passed, `get_string` just returns that string.
+#
+#        default : Nengo object, optional
+#            If `target` is not in the model, then `get` will
+#            return `default`.
+#
+#        Returns
+#        -------
+#        target : Nengo object
+#            The Nengo object specified by `target`.
+#
+#        Raises
+#        ------
+#        ValueError
+#            If the `target` does not exist and no `default` is specified.
+#
+#        """
+#        if isinstance(target, str) and self.objs.has_key(target):
+#            return target
+#        for k, v in self.objs.iteritems():
+#            if v == target:
+#                return k
+#        return default
 
     def remove(self, target):
         """Removes a Nengo object from the model.
@@ -261,17 +261,12 @@ class Model(object, context.Context):
             The Nengo object removed.
 
         """
-        obj = self.get(target)
-        if obj is None:
+        if not target in self.objs:
             logger.warning("%s is not in model %s.", str(target), self.label)
             return
 
-        for k, v in self.objs.iteritems():
-            if v == obj:
-                del self.objs[k]
-                logger.info("%s removed.", k)
-
-        return obj
+        self.objs = [o for o in self.objs if o != target]
+        logger.info("%s removed.", target)
 
     # Model creation methods
 

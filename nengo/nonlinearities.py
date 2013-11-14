@@ -156,7 +156,7 @@ class LIFRate(_LIFBase):
         old = np.seterr(divide='ignore')
         try:
             j = np.maximum(J - 1, 0.)
-            r = dt / (self.tau_ref + self.tau_rc * np.log1p(1./j))
+            r = dt / (self.tau_ref + self.tau_rc * np.log(1+1./j))
         finally:
             np.seterr(**old)
         return r

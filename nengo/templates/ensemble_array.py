@@ -4,6 +4,7 @@ import logging
 import numpy as np
 
 from .. import objects
+from .. import context
 
 
 logger = logging.getLogger(__name__)
@@ -34,17 +35,19 @@ class EnsembleArray(object):
 
     """
 
-    def __init__(self, name, neurons, n_ensembles,
-                 dimensions_per_ensemble=1, **ens_args):
+    def __init__(self, neurons, n_ensembles,
+                 dimensions_per_ensemble=1, label="EnsembleArray",
+                 **ens_args):
         """
         TODO
         """
         assert n_ensembles > 0, "Number of ensembles must be positive"
 
-        self.name = name
+        self.label = label
 
         # Make some empty ensembles for now
-        self.ensembles = [objects.Ensemble(name+("[%d]" % i), neurons, 1)
+        self.ensembles = [objects.Ensemble(neurons, 1, label=self.label+("[%d]" % i),
+                                           auto_add = False)
                           for i in xrange(n_ensembles)]
 
         # Any ens_args will be set on enclosed ensembles
@@ -59,6 +62,9 @@ class EnsembleArray(object):
         self.connections_in = []
         self.connections_out = []
         self.probes = {'decoded_output': []}
+        
+        #add self to current context
+        context.add_to_current(self)
 
     @property
     def dimensions(self):
@@ -122,8 +128,4 @@ class EnsembleArray(object):
         return probe
 
     def add_to_model(self, model):
-        if model.objs.has_key(self.name):
-            raise ValueError("Something called " + self.name + " already "
-                             "exists. Please choose a different name.")
-
-        model.objs[self.name] = self
+        model.objs += [self]

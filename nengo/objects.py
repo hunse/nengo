@@ -88,6 +88,7 @@ class Ensemble(object):
         self.max_rates = kwargs.get('max_rates', Uniform(200, 400))
         self.radius = kwargs.get('radius', 1.0)
         self.seed = kwargs.get('seed', None)
+        self.auto_add = kwargs.get('auto_add', True)
 
         # Set up connections and probes
         self.connections_in = []
@@ -98,7 +99,8 @@ class Ensemble(object):
         self._scaled_encoders = None  # encoders * neuron-gains / radius
         
         #add self to current context
-        context.add_to_current(self)
+        if self.auto_add:
+            context.add_to_current(self)
 
     def __str__(self):
         return "Ensemble: " + self.label
@@ -182,11 +184,7 @@ class Ensemble(object):
             The new connection object.
         """
 
-        connection = DecodedConnection(self, post, **kwargs)
-        self.connections_out.append(connection)
-        if hasattr(post, 'connections_in'):
-            post.connections_in.append(connection)
-        return connection
+        return DecodedConnection(self, post, **kwargs)
 
     def probe(self, probe):
         """Probe a signal in this ensemble.
@@ -211,18 +209,10 @@ class Ensemble(object):
         if probe.attr == 'decoded_output':
             self.connect_to(probe, filter=probe.filter)
         elif probe.attr == 'spikes':
-            connection = Connection(
-                self.neurons, probe, filter=probe.filter,
+            Connection(self.neurons, probe, filter=probe.filter,
                 transform=np.eye(self.n_neurons))
-            self.connections_out.append(connection)
-            if hasattr(probe, 'connections_in'):
-                probe.connections_in.append(connection)
         elif probe.attr == 'voltages':
-            connection = Connection(
-                self.neurons.voltage, probe, filter=None)
-            self.connections_out.append(connection)
-            if hasattr(probe, 'connections_in'):
-                probe.connections_in.append(connection)
+            Connection(self.neurons.voltage, probe, filter=None)
         else:
             raise NotImplementedError(
                 "Probe target '%s' is not probable" % probe.attr)
@@ -244,9 +234,8 @@ class PassthroughNode(object):
         context.add_to_current(self)
 
     def connect_to(self, post, **kwargs):
-        connection = Connection(self, post, **kwargs)
-        self.connections_out += [connection]
-
+        return Connection(self, post, **kwargs)
+        
     def add_to_model(self, model):
         model.objs += [self]
 
@@ -327,11 +316,7 @@ class Node(object):
 
     def connect_to(self, post, **kwargs):
         """TODO"""
-        connection = Connection(self, post, **kwargs)
-        self.connections_out.append(connection)
-        if hasattr(post, 'connections_in'):
-            post.connections_in.append(connection)
-        return connection
+        return Connection(self, post, **kwargs)
 
     def probe(self, probe):
         """TODO"""
@@ -341,9 +326,6 @@ class Node(object):
         return probe
 
     def add_to_model(self, model):
-        if callable(self.output):
-            Connection(model.t, self, filter=None)
-
         model.objs += [self]
 
 

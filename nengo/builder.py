@@ -867,8 +867,13 @@ class Builder(object):
             if isinstance(node.output, (int, float, long, complex)):
                 node.output_signal = Signal([node.output], name=node.label)
             else:
-                node.output_signal = Signal(node.output, name=node.name)
+                node.output_signal = Signal(node.output, name=node.label)
         else:
+            #if no input, assume input is supposed to come from model.t
+            if len(node.connections_in) == 0:
+                with self.model:
+                    objects.Connection(self.model.t, node, filter=None)
+            
             node.input_signal = Signal(np.zeros(node.dimensions),
                                        name=node.label + ".signal")
 
@@ -960,7 +965,7 @@ class Builder(object):
             if conn.function is None:
                 conn.signal = conn.input_signal
             else:
-                name = conn.name + ".pyfunc"
+                name = conn.label + ".pyfunc"
                 conn.pyfunc = nonlinearities.PythonFunction(
                     fn=conn.function, n_in=conn.input_signal.size, name=name)
                 self.build_pyfunc(conn.pyfunc)
@@ -1035,7 +1040,7 @@ class Builder(object):
     @builds(templates.EnsembleArray)
     def build_ensemblearray(self, ea):
         ea.input_signal = Signal(np.zeros(ea.dimensions),
-                                 name=ea.name+".signal")
+                                 name=ea.label+".signal")
         self.model.operators.append(Reset(ea.input_signal))
         dims = ea.dimensions_per_ensemble
 

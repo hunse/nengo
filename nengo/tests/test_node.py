@@ -19,7 +19,7 @@ class TestNode(SimulatorTestCase):
             input = nengo.Node(output=np.sin)
             p = nengo.Probe(input, 'output')
 
-        sim = m.simulator(dt=dt, sim_class=self.Simulator)
+        sim = self.Simulator(m, dt=dt)
         runtime = 0.5
         sim.run(runtime)
 
@@ -40,20 +40,21 @@ class TestNode(SimulatorTestCase):
         m = nengo.Model('test_connected', seed=123)
         
         with m:
-            input = nengo.Node(output=np.sin)
-            # Not using make_node, as make_node connects time to node
-            output = nengo.Node(output=np.square)
+            input = nengo.Node(output=np.sin, label='input')
+            output = nengo.Node(output=np.square, label='output')
             nengo.Connection(input, output, filter=None)  # Direct connection
             p_in = nengo.Probe(input, 'output')
             p_out = nengo.Probe(output, 'output')
 
-        sim = m.simulator(dt=dt, sim_class=self.Simulator)
+        sim = self.Simulator(m, dt=dt)
         runtime = 0.5
         sim.run(runtime)
 
         with Plotter(self.Simulator) as plt:
             plt.plot(sim.data(m.t_probe), sim.data(p_in), label='sin')
             plt.plot(sim.data(m.t_probe), sim.data(p_out), label='sin squared')
+            plt.plot(sim.data(m.t_probe), np.sin(sim.data(m.t_probe)), label='ideal sin')
+            plt.plot(sim.data(m.t_probe), np.sin(sim.data(m.t_probe))**2, label='ideal squared')
             plt.legend(loc='best')
             plt.savefig('test_node.test_connected.pdf')
             plt.close()
@@ -62,8 +63,7 @@ class TestNode(SimulatorTestCase):
         sim_sin = sim.data(p_in).ravel()
         sim_sq = sim.data(p_out).ravel()
         t = dt * np.arange(len(sim_t))
-        print sim_t
-        print t
+
         self.assertTrue(np.allclose(sim_t, t))
         self.assertTrue(np.allclose(sim_sin[1:], np.sin(t[:-1]))) # 1-step delay
         self.assertTrue(np.allclose(sim_sq[1:], sim_sin[:-1]**2)) # 1-step delay
@@ -86,7 +86,7 @@ class TestNode(SimulatorTestCase):
             in2_p = nengo.Probe(in2, 'output')
             out_p = nengo.Probe(out, 'output')
 
-        sim = m.simulator(dt=dt, sim_class=self.Simulator)
+        sim = self.Simulator(m, dt=dt)
         runtime = 0.5
         sim.run(runtime)
 
@@ -115,7 +115,7 @@ class TestNode(SimulatorTestCase):
             a_p = nengo.Probe(a, 'output')
             b_p = nengo.Probe(b, 'output')
 
-        sim = m.simulator(dt=dt, sim_class=self.Simulator)
+        sim = self.Simulator(m, dt=dt)
         runtime = 0.5
         sim.run(runtime)
 

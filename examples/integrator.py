@@ -24,6 +24,7 @@ Network behaviour:
 """
 import nengo
 import nengo.helpers
+from nengo.simulator import Simulator
 
 #from nengo.objects import Node, Ensemble, DecodedConnection, Connection, Probe
 
@@ -50,7 +51,7 @@ with model:
 
 
 # Create our simulator
-sim = model.simulator()
+sim = Simulator(model)
 # Run it for 6 seconds
 sim.run(6)
 
