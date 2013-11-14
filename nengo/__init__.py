@@ -6,6 +6,7 @@ import sys
 
 from .model import Model
 from .nonlinearities import LIF
+from .objects import Ensemble, Node, Connection, DecodedConnection, Probe
 
 
 logger = logging.getLogger(__name__)

@@ -25,29 +25,29 @@ Network behaviour:
 import nengo
 import nengo.helpers
 
-from nengo.objects import Node, Ensemble, DecodedConnection, Connection, Probe
+#from nengo.objects import Node, Ensemble, DecodedConnection, Connection, Probe
 
 model = nengo.Model(label='Integrator')
 
 with model:
     # Our ensemble consists of 100 leaky integrate-and-fire neurons,
     # representing a one-dimensional signal
-    A = Ensemble(nengo.LIF(100), dimensions=1, label='Integrator')
+    A = nengo.Ensemble(nengo.LIF(100), dimensions=1, label='Integrator')
     
     # Create a piecewise step function for input
-    input = Node(nengo.helpers.piecewise({0:0,0.2:1,1:0,2:-2,3:0,4:1,5:0}), label='Piecewise input')
+    input = nengo.Node(nengo.helpers.piecewise({0:0,0.2:1,1:0,2:-2,3:0,4:1,5:0}), label='Piecewise input')
     
     # Connect the population to itself
     tau = 0.1
-    DecodedConnection(A, A, transform=[[1]], filter=tau) #The same time constant as recurrent to make it more 'ideal'
+    nengo.DecodedConnection(A, A, transform=[[1]], filter=tau) #The same time constant as recurrent to make it more 'ideal'
     
     # Connect the input
-    Connection(input, A, transform=[[tau]], filter=tau) #The same time constant as recurrent to make it more 'ideal'
+    nengo.Connection(input, A, transform=[[tau]], filter=tau) #The same time constant as recurrent to make it more 'ideal'
     
     # Add probes
-    p1 = Probe(input, 'output')
-    p2 = Probe(A, 'decoded_output', filter=0.01)
-    p3 = Probe(model.t, 'output')
+    p1 = nengo.Probe(input, 'output')
+    p2 = nengo.Probe(A, 'decoded_output', filter=0.01)
+    p3 = nengo.Probe(model.t, 'output')
 
 
 # Create our simulator
