@@ -110,10 +110,6 @@ class Ensemble(object):
         return self.neurons.n_neurons
 
     @property
-    def nl(self):
-        return self._neurons
-
-    @property
     def neurons(self):
         """The neurons that make up the ensemble.
 
@@ -133,8 +129,9 @@ class Ensemble(object):
         # Give a better name if name is default
         if _neurons.name.startswith("<"):
             _neurons.name = self.name + "." + _neurons.__class__.__name__
-        # Store dimensions on neurons (necessary for some classes)
-        _neurons.dimensions = self.dimensions
+        # Set n_in and n_out for direct mode
+        if isinstance(_neurons, nonlinearities.Direct):
+            _neurons.n_in = _neurons.n_out = self.dimensions
         self._neurons = _neurons
 
     def activities(self, eval_points=None):
@@ -162,28 +159,6 @@ class Ensemble(object):
             #processed in the build function (i.e., had the radius
             #and gain mixed in)
 
-    def connect_to(self, post, **kwargs):
-        """Connect this ensemble to another object.
-
-        Parameters
-        ----------
-        post : model object
-            The connection's target destination.
-        **kwargs : optional
-            Arguments for the new DecodedConnection.
-
-        Returns
-        -------
-        connection : DecodedConnection
-            The new connection object.
-        """
-
-        connection = DecodedConnection(self, post, **kwargs)
-        self.connections_out.append(connection)
-        if hasattr(post, 'connections_in'):
-            post.connections_in.append(connection)
-        return connection
-
     def probe(self, to_probe='decoded_output', sample_every=0.001, filter=0.01):
         """Probe a signal in this ensemble.
 
@@ -203,31 +178,25 @@ class Ensemble(object):
         """
         if to_probe == 'decoded_output':
             probe = Probe(self.name + '.decoded_output', sample_every)
-            self.connect_to(probe, filter=filter)
+            connection = Connection(self, probe, filter=filter)
             self.probes['decoded_output'].append(probe)
-
         elif to_probe == 'spikes':
             probe = Probe(self.name + '.spikes', sample_every)
             connection = Connection(
                 self.neurons, probe, filter=filter,
                 transform=np.eye(self.n_neurons))
-            self.connections_out.append(connection)
-            if hasattr(probe, 'connections_in'):
-                probe.connections_in.append(connection)
             self.probes['spikes'].append(probe)
-
         elif to_probe == 'voltages':
             probe = Probe(self.name + '.voltages', sample_every, self.n_neurons)
             connection = Connection(
                 self.neurons.voltage, probe, filter=None)
-            self.connections_out.append(connection)
-            if hasattr(probe, 'connections_in'):
-                probe.connections_in.append(connection)
             self.probes['voltages'].append(probe)
-
         else:
             raise NotImplementedError(
                 "Probe target '%s' is not probable" % to_probe)
+        self.connections_out.append(connection)
+        if hasattr(probe, 'connections_in'):
+            probe.connections_in.append(connection)
         return probe
 
     def add_to_model(self, model):
@@ -246,10 +215,6 @@ class PassthroughNode(object):
         self.connections_out = []
         self.probes = {'output': []}
 
-    def connect_to(self, post, **kwargs):
-        connection = Connection(self, post, **kwargs)
-        self.connections_out += [connection]
-
     def add_to_model(self, model):
         if model.objs.has_key(self.name):
             raise ValueError("Something called " + self.name + " already "
@@ -263,7 +228,8 @@ class PassthroughNode(object):
 
         if to_probe == 'output':
             p = Probe(self.name + ".output", sample_every)
-            self.connect_to(p, filter=filter)
+            c = Connection(self, p)
+            self.connections_out.append(c)
             self.probes['output'].append(p)
         return p
 
@@ -329,19 +295,12 @@ class Node(object):
                     rval.__dict__[k] = copy.deepcopy(v, memo)
             return rval
 
-    def connect_to(self, post, **kwargs):
-        """TODO"""
-        connection = Connection(self, post, **kwargs)
-        self.connections_out.append(connection)
-        if hasattr(post, 'connections_in'):
-            post.connections_in.append(connection)
-        return connection
-
     def probe(self, to_probe='output', sample_every=0.001, filter=None):
         """TODO"""
         if to_probe == 'output':
             p = Probe(self.name + ".output", sample_every)
-            self.connect_to(p, filter=filter)
+            c = Connection(self, p)
+            self.connections_out.append(c)
             self.probes['output'].append(p)
         return p
 
@@ -354,7 +313,7 @@ class Node(object):
 
 
 class Connection(object):
-    """A Connection connects two objects naively via a transform and a filter.
+    """A Connection connects two objects together.
 
     Attributes
     ----------
@@ -373,66 +332,30 @@ class Connection(object):
     def __init__(self, pre, post, **kwargs):
         self.pre = pre
         self.post = post
-
-        self.filter = kwargs.get('filter', 0.005)
-        self.transform = kwargs.get('transform', 1.0)
-        self.modulatory = kwargs.get('modulatory', False)
-
         self.probes = {'signal': []}
+
+        self.filter = kwargs.pop('filter', 0.005)
+        self.transform = kwargs.pop('transform', 1.0)
+        self.modulatory = kwargs.pop('modulatory', False)
+
+        if isinstance(self.pre, (Ensemble, nonlinearities.Neurons)):
+            self.function = None
+            self.decoders = kwargs.pop('decoders', None)
+        if isinstance(self.pre, Ensemble):
+            self.decoder_solver = kwargs.pop('decoder_solver',
+                                             decoders.least_squares)
+            self.eval_points = kwargs.pop('eval_points', None)
+            self.function = kwargs.pop('function', None)
+
+        if len(kwargs) > 0:
+            raise TypeError("__init__() got an unexpected keyword argument '"
+                            + kwargs.keys()[0] + "'")
 
     def __str__(self):
         return self.name + " (" + self.__class__.__name__ + ")"
 
     def __repr__(self):
         return str(self)
-
-    @property
-    def name(self):
-        return self.pre.name + ">" + self.post.name
-
-    @property
-    def transform(self):
-        """TODO"""
-        return self._transform
-
-    @transform.setter
-    def transform(self, _transform):
-        self._transform = np.asarray(_transform)
-
-    def add_to_model(self, model):
-        model.connections.append(self)
-
-
-class DecodedConnection(Connection):
-    """A DecodedConnection connects an ensemble to an object
-    via a set of decoders, a transform, and a filter.
-
-    Attributes
-    ----------
-    name
-    pre
-    post
-
-    decoders
-    eval_points
-    filter : type
-        description
-    function : type
-        description
-    transform
-
-    probes : type
-        description
-
-    """
-    def __init__(self, pre, post, **kwargs):
-        Connection.__init__(self, pre, post, **kwargs)
-
-        self.decoders = kwargs.get('decoders', None)
-        self.decoder_solver = kwargs.get('decoder_solver',
-                                         decoders.least_squares)
-        self.eval_points = kwargs.get('eval_points', None)
-        self.function = kwargs.get('function', None)
 
     @property
     def decoders(self):
@@ -451,25 +374,27 @@ class DecodedConnection(Connection):
                        "%d. (shape=%s)" % (self.pre.n_neurons,
                                            _decoders.shape[0],
                                            _decoders.shape))
-                raise builder.ShapeMismatch(msg)
+                raise ValueError(msg)
 
         self._decoders = None if _decoders is None else _decoders.T
 
     @property
     def dimensions(self):
-        if self.function is None:
+        if self.decoders is not None:
+            return self.decoders.shape[1]
+
+        if not hasattr(self, 'function') or self.function is None:
             return self.pre.dimensions
+
+        if self._eval_points is not None:
+            val = self._eval_points[0]
         else:
-            if self._eval_points is not None:
-                val = self._eval_points[0]
-            else:
-                val = np.ones(self.pre.dimensions)
-            return np.array(self.function(val)).size
+            val = np.zeros(self.pre.dimensions)
+        return np.array(self.function(val)).size
 
     @property
     def eval_points(self):
         if self._eval_points is None:
-            # OK because ensembles always build first
             return self.pre.eval_points
         return self._eval_points
 
@@ -477,16 +402,19 @@ class DecodedConnection(Connection):
     def eval_points(self, _eval_points):
         if _eval_points is not None:
             _eval_points = np.asarray(_eval_points)
-            if len(_eval_points.shape) == 1:
-                _eval_points.shape = (1, _eval_points.shape[0])
+            if _eval_points.ndim == 1:
+                _eval_points.shape = 1, _eval_points.shape[0]
         self._eval_points = _eval_points
 
     @property
     def name(self):
         name = self.pre.name + ">" + self.post.name
-        if self.function is not None:
+        if hasattr(self, 'function') and self.function is not None:
             return name + ":" + self.function.__name__
         return name
+
+    def add_to_model(self, model):
+        model.connections.append(self)
 
 
 class ConnectionList(object):

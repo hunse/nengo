@@ -907,72 +907,37 @@ class Builder(object):
             Signal(n_coef), signal, Signal(o_coef), filtered))
         return filtered
 
+    def _direct_pyfunc(self, name, input_signal, function):
+        name = name + ".pyfunc"
+        pyfunc = nonlinearities.PythonFunction(
+            fn=function, n_in=input_signal.size, name=name)
+        self.build_pyfunc(pyfunc)
+        self.model.operators.append(DotInc(
+            input_signal, Signal(1.0), pyfunc.input_signal))
+        return pyfunc
+
     @builds(objects.Connection)
     def build_connection(self, conn):
         conn.input_signal = conn.pre.output_signal
         conn.output_signal = conn.post.input_signal
-        if conn.modulatory:
-            # Make a new signal, effectively detaching from post
-            conn.output_signal = Signal(np.zeros(conn.dimensions),
-                                        name=conn.name + ".mod_output")
-
-        if isinstance(conn.post, nonlinearities.Neurons):
-            conn.transform *= conn.post.gain[:, np.newaxis]
-
-        # Set up filter
-        if conn.filter is not None and conn.filter > self.model.dt:
-            conn.input_signal = self._filtered_signal(
-                conn.input_signal, conn.filter)
-
-        # Set up transform
-        self.model.operators.append(DotInc(
-            Signal(conn.transform), conn.input_signal, conn.output_signal))
-
-        # Set up probes
-        for probe in conn.probes['signal']:
-            probe.dimensions = conn.output_signal.size
-            self.model.add(probe)
-
-
-    @builds(objects.DecodedConnection)
-    def build_decodedconnection(self, conn):
-        assert isinstance(conn.pre, objects.Ensemble)
-        conn.input_signal = conn.pre.output_signal
-        conn.output_signal = conn.post.input_signal
-        if conn.modulatory:
-            # Make a new signal, effectively detaching from post,
-            # but still performing the decoding
-            conn.output_signal = Signal(np.zeros(conn.dimensions),
-                                        name=conn.name + ".mod_output")
-        if isinstance(conn.post, nonlinearities.Neurons):
-            conn.transform *= conn.post.gain[:, np.newaxis]
         dt = self.model.dt
 
-        # A special case for Direct mode.
-        # In Direct mode, rather than do decoders, we just
-        # compute the function and make a direct connection.
-        if isinstance(conn.pre.neurons, nonlinearities.Direct):
+        # Figure out the signal going across this connection
+        if (isinstance(conn.pre, objects.Ensemble)
+                and isinstance(conn.pre.neurons, nonlinearities.Direct)):
+            # 1. Decoded connection in directmode
             if conn.function is None:
                 conn.signal = conn.input_signal
             else:
-                name = conn.name + ".pyfunc"
-                conn.pyfunc = nonlinearities.PythonFunction(
-                    fn=conn.function, n_in=conn.input_signal.size, name=name)
-                self.build_pyfunc(conn.pyfunc)
-                self.model.operators.append(DotInc(
-                    conn.input_signal, Signal(1.0), conn.pyfunc.input_signal))
+                conn.pyfunc = self._direct_pyfunc(
+                    conn.name, conn.input_signal, conn.function)
                 conn.signal = conn.pyfunc.output_signal
 
-            # Set up filter
             if conn.filter is not None and conn.filter > dt:
                 conn.signal = self._filtered_signal(conn.signal, conn.filter)
-
-        else:
-            # For normal decoded connections...
-            conn.input_signal = conn.pre.output_signal
+        elif isinstance(conn.pre, objects.Ensemble):
+            # 2. Normal decoded connection
             conn.signal = Signal(np.zeros(conn.dimensions), name=conn.name)
-
-            # Set up decoders
             if conn._decoders is None:
                 activities = conn.pre.activities(conn.eval_points) * dt
                 if conn.function is None:
@@ -980,26 +945,45 @@ class Builder(object):
                 else:
                     targets = np.array(
                         [conn.function(ep) for ep in conn.eval_points])
-                    if len(targets.shape) < 2:
+                    if targets.ndim < 2:
                         targets.shape = targets.shape[0], 1
                 conn._decoders = conn.decoder_solver(activities, targets)
+        elif isinstance(conn.pre, nonlinearities.Neurons):
+            # 3. Decoded connection directly from neurons
+            if conn._decoders is None and conn.pre.n_neurons == conn.output_signal.size:
+                print 'here'
+                conn._decoders = np.ones(())
+            elif conn._decoders is None:
+                raise ValueError("Decoders must be specified.")
+            conn.signal = Signal(np.zeros(conn.output_signal.size), name=conn.name)
+        elif conn.filter is not None and conn.filter > self.model.dt:
+            # 4. Filtered connection
+            conn.signal = self._filtered_signal(conn.input_signal, conn.filter)
+        else:
+            # 5. Direct connection
+            conn.signal = conn.input_signal
 
-            # Set up filter
+        # Filtering
+        if isinstance(conn.pre, (objects.Ensemble, nonlinearities.Neurons)):
             if conn.filter is not None and conn.filter > dt:
                 o_coef, n_coef = self.filter_coefs(pstc=conn.filter, dt=dt)
-                self.model.operators.append(
-                    ProdUpdate(Signal(conn._decoders * n_coef),
-                               conn.input_signal,
-                               Signal(o_coef),
-                               conn.signal))
+                conn.decoder_signal = Signal(conn._decoders * n_coef)
             else:
-                self.model.operators.append(
-                    ProdUpdate(Signal(conn._decoders),
-                               conn.input_signal,
-                               Signal(0),
-                               conn.signal))
+                conn.decoder_signal = Signal(conn._decoders)
+                o_coef = 0
+            self.model.operators.append(ProdUpdate(conn.decoder_signal,
+                                                   conn.input_signal,
+                                                   Signal(o_coef),
+                                                   conn.signal))
 
         # Set up transform
+        conn.transform = np.asarray(conn.transform, dtype=np.float64)
+        if isinstance(conn.post, nonlinearities.Neurons):
+            conn.transform *= conn.post.gain[:, np.newaxis]
+        if conn.modulatory:
+            # Make a new signal, effectively detaching from post
+            conn.output_signal = Signal(np.zeros(conn.output_signal.size),
+                                        name=conn.name + ".mod_output")
         self.model.operators.append(DotInc(
             Signal(conn.transform), conn.signal, conn.output_signal))
 

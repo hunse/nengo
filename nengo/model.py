@@ -434,7 +434,9 @@ class Model(object):
         """
         pre = self.get(pre)
         post = self.get(post)
-        return pre.connect_to(post, **kwargs)
+        conn = objects.Connection(pre, post, **kwargs)
+        self.connections.append(conn)
+        return conn
 
     def probe(self, target, sample_every=0.001, filter=None):
         """Probe a piece of data contained in the model.
