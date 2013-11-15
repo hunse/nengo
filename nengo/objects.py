@@ -136,10 +136,6 @@ class Ensemble(object):
                             "not an int. Defaulting to LIF."))
             _neurons = nonlinearities.LIF(_neurons)
 
-        # Give a better name if name is default
-#        if _neurons.name.startswith("<"):
-#            _neurons.name = self.label + "." + _neurons.__class__.__name__
-        # Store dimensions on neurons (necessary for some classes)
         _neurons.dimensions = self.dimensions
         self._neurons = _neurons
 
@@ -523,6 +519,5 @@ class Probe(object):
         return 1.0 / self.sample_every
 
     def add_to_model(self, model):
-#        model.signal_probes.append(self) #this never gets used anywhere
-        model.probed[self.target] = self #this won't work if you have multiple probes on the same target
+        model.probed[self.target] = self #TODO: this won't work if you have multiple probes on the same target
                                         #(it worked before because target was a string that specified the attr)

@@ -723,7 +723,7 @@ class Builder(object):
         self.model.probes = []
         self.model.operators = []
         self.model.probemap = {}
-        self.model.objectmap = {}
+#        self.model.objectmap = {}
 
         # 1. Build objects
         logger.info("Building objects")
