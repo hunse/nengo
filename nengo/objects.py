@@ -240,7 +240,7 @@ class PassthroughNode(object):
         model.objs += [self]
 
     def probe(self, probe):
-        if filter is not None and filter > 0:
+        if probe.filter is not None and probe.filter > 0:
             logger.warning("Filter set on constant. Usually accidental.")
 
         if probe.attr == 'output':

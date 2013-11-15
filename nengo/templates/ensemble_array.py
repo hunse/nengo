@@ -119,11 +119,9 @@ class EnsembleArray(object):
             post.connections_in.append(connection)
         return connection
 
-    def probe(self, to_probe='decoded_output',
-              sample_every=0.001, filter=0.01, dt=0.001):
-        if to_probe == 'decoded_output':
-            probe = objects.Probe(self.name + ".decoded_output", sample_every)
-            self.connect_to(probe, filter=filter)
+    def probe(self, probe):
+        if probe.attr == 'decoded_output':
+            self.connect_to(probe, filter=probe.filter)
             self.probes['decoded_output'].append(probe)
         return probe
 

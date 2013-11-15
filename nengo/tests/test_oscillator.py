@@ -31,15 +31,14 @@ class TestOscillator(SimulatorTestCase):
             in_probe = nengo.Probe(input, "output")
             A_probe = nengo.Probe(A, "decoded_output", filter=0.01)
             T_probe = nengo.Probe(T.ensemble, "decoded_output", filter=0.01)
-            time = nengo.Probe(model.t, "output")
             
-        sim = model.simulator(dt=0.001, sim_class=self.Simulator)
+        sim = self.Simulator(model, dt=0.001)
         sim.run(3.0)
 
         with Plotter(self.Simulator) as plt:
-            t = sim.data(time)
+            t = sim.data(model.t_probe)
             plt.plot(t, sim.data(A_probe), label='Manual')
-            plt.plot(t, sim.data(T_probe), label='Template')
+            plt.plot(t, sim.data(model.t_probe), label='Template')
             plt.plot(t, sim.data(in_probe), 'k', label='Input')
             plt.legend(loc=0)
             plt.savefig('test_oscillator.test_oscillator.pdf')

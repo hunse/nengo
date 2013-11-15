@@ -17,11 +17,8 @@ class TestProbe(SimulatorTestCase):
         rtol = 1e-4
 
         model = nengo.Model("Multi-run")
-        
-        with model:
-            p = nengo.Probe(model.t, "output")
 
-        sim = model.simulator(sim_class=self.Simulator)
+        sim = self.Simulator(model)
         dt = sim.model.dt
 
         # t_stops = [0.123, 0.283, 0.821, 0.921]
@@ -32,7 +29,7 @@ class TestProbe(SimulatorTestCase):
         t_sum = 0
         for ti in t_stops:
             sim.run(ti)
-            sim_t = sim.data(p).flatten()
+            sim_t = sim.data(model.t_probe).flatten()
             t = dt * np.arange(len(sim_t))
             self.assertTrue(np.allclose(sim_t, t, rtol=rtol))
             # assert_allclose(self, logger, sim_t, t, rtol=rtol)
@@ -60,7 +57,7 @@ class TestProbe(SimulatorTestCase):
                 p = nengo.Probe(xi, 'output', sample_every=dt)
                 probes.append(p)
 
-        sim = model.simulator(sim_class=self.Simulator)
+        sim = self.Simulator(model)
         simtime = 2.483
         # simtime = 2.484
         dt = sim.model.dt
@@ -77,8 +74,6 @@ class TestProbe(SimulatorTestCase):
             x = np.asarray(map(input_fn, t))
             y = sim.data(p)
             self.assertTrue(len(x) == len(y))
-            print x
-            print y
             self.assertTrue(np.allclose(y[1:], x[:-1])) # 1-step delay
 
 
@@ -105,7 +100,7 @@ class TestProbe(SimulatorTestCase):
                 # m.connect(xi, Ai)
                 # m.probe(Ai, filter=0.1)
 
-        sim = model.simulator(sim_class=self.Simulator)
+        sim = self.Simulator(model)
         simtime = 2.483
         dt = sim.model.dt
 

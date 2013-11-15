@@ -881,7 +881,7 @@ class Builder(object):
             self.model.operators.append(Reset(node.input_signal))
 
             node.pyfn = nonlinearities.PythonFunction(
-                fn=node.output, n_in=node.dimensions, name=node.label + ".pyfn")
+                fn=node.output, n_in=node.dimensions, label=node.label + ".pyfn")
             self.build_pyfunc(node.pyfn)
             self.model.operators.append(DotInc(
                 node.input_signal, Signal([[1.0]]), node.pyfn.input_signal))
@@ -965,9 +965,9 @@ class Builder(object):
             if conn.function is None:
                 conn.signal = conn.input_signal
             else:
-                name = conn.label + ".pyfunc"
+                label = conn.label + ".pyfunc"
                 conn.pyfunc = nonlinearities.PythonFunction(
-                    fn=conn.function, n_in=conn.input_signal.size, name=name)
+                    fn=conn.function, n_in=conn.input_signal.size, label=label)
                 self.build_pyfunc(conn.pyfunc)
                 self.model.operators.append(DotInc(
                     conn.input_signal, Signal(1.0), conn.pyfunc.input_signal))
@@ -1053,9 +1053,9 @@ class Builder(object):
     @builds(nonlinearities.PythonFunction)
     def build_pyfunc(self, pyfn):
         pyfn.input_signal = Signal(np.zeros(pyfn.n_in),
-                                   name=pyfn.name + '.input')
+                                   name=pyfn.label + '.input')
         pyfn.output_signal = Signal(np.zeros(pyfn.n_out),
-                                    name=pyfn.name + '.output')
+                                    name=pyfn.label + '.output')
         pyfn.operators = [Reset(pyfn.input_signal),
                           SimPyFunc(output=pyfn.output_signal,
                                     J=pyfn.input_signal,
@@ -1064,17 +1064,17 @@ class Builder(object):
 
     def build_neurons(self, neurons):
         neurons.input_signal = Signal(np.zeros(neurons.n_in),
-                                      name=neurons.name + '.input')
+                                      name=neurons.label + '.input')
         neurons.output_signal = Signal(np.zeros(neurons.n_out),
-                                       name=neurons.name + '.output')
-        neurons.bias_signal = Signal(neurons.bias, name=neurons.name + '.bias')
+                                       name=neurons.label + '.output')
+        neurons.bias_signal = Signal(neurons.bias, name=neurons.label + '.bias')
         self.model.operators.append(
             Copy(src=neurons.bias_signal, dst=neurons.input_signal))
 
     @builds(nonlinearities.Direct)
     def build_direct(self, direct):
         direct.input_signal = Signal(np.zeros(direct.dimensions),
-                                     name=direct.name)
+                                     name=direct.label)
         direct.output_signal = direct.input_signal
         self.model.operators.append(Reset(direct.input_signal))
 

@@ -7,7 +7,7 @@ class TestContext(SimulatorTestCase):
     def test_default(self):
         model = nengo.Model("test")
         
-        e = nengo.Ensemble(1, 1)
+        e = nengo.Node(nengo.LIF(1), 1)
         n = nengo.Node([0])
         
         self.assertTrue(e in model.objs)
@@ -15,18 +15,18 @@ class TestContext(SimulatorTestCase):
         
         con = MyContext()
         with con:
-            e2 = nengo.Ensemble(1, 1)
+            e2 = nengo.Ensemble(nengo.LIF(1), 1)
         
         self.assertTrue(e2 in con.objs)
         self.assertTrue(not e2 in model.objs)
         
-        e3 = nengo.Ensemble(1, 1)
+        e3 = nengo.Ensemble(nengo.LIF(1), 1)
         
         self.assertTrue(e3 in model.objs)
         
         model2 = nengo.Model("test")
         
-        e4 = nengo.Ensemble(1, 1)
+        e4 = nengo.Ensemble(nengo.LIF(1), 1)
         
         self.assertTrue(e4 in model.objs)
         self.assertTrue(not e4 in model2.objs)
@@ -37,27 +37,27 @@ class TestContext(SimulatorTestCase):
         con3 = MyContext()
         
         with con1:
-            e1 = nengo.Ensemble(1, 1)
+            e1 = nengo.Ensemble(nengo.LIF(1), 1)
             self.assertTrue(e1 in con1.objs)
             
             with con2:
-                e2 = nengo.Ensemble(1, 1)
+                e2 = nengo.Ensemble(nengo.LIF(1), 1)
                 self.assertTrue(e2 in con2.objs)
                 self.assertTrue(not e2 in con1.objs)
                 
                 with con3:
-                    e3 = nengo.Ensemble(1, 1)
+                    e3 = nengo.Ensemble(nengo.LIF(1), 1)
                     self.assertTrue(e3 in con3.objs)
                     self.assertTrue(not e3 in con2.objs and not e3 in con1.objs)
                     
-                e4 = nengo.Ensemble(1, 1)
+                e4 = nengo.Ensemble(nengo.LIF(1), 1)
                 self.assertTrue(e4 in con2.objs)
                 self.assertTrue(not e4 in con3.objs)
             
-            e5 = nengo.Ensemble(1, 1)
+            e5 = nengo.Ensemble(nengo.LIF(1), 1)
             self.assertTrue(e5 in con1.objs)
             
-        e6 = nengo.Ensemble(1, 1)
+        e6 = nengo.Ensemble(nengo.LIF(1), 1)
         self.assertTrue(not e6 in con1.objs)
         
     def test_networks(self):
